@@ -48,8 +48,6 @@ public class SwingGameClient extends JFrame implements ActionListener{
 			ServerPackage serverPackage=null;
 			try {
 				while((serverPackage = (ServerPackage)inputStream.readObject())!=null) {
-					parent.textArea.setText("");
-//					boolean inPlayer=false;
 					boolean inList=false;
 					if(player.isNewPlayer()) {
 						if(serverPackage.getPlayer().getName().equals(player.getName()) || serverPackage.getPlayer().getName().contains(player.getName())) {
@@ -61,6 +59,7 @@ public class SwingGameClient extends JFrame implements ActionListener{
 						if(p.getName().equals(player.getName())){
 							parent.youAre(p);
 							inList=true;
+							spectating=false;
 							System.out.println("From the list, you are:" + p.getName());
 						}
 					}
@@ -73,7 +72,7 @@ public class SwingGameClient extends JFrame implements ActionListener{
 						player.setDealer(false);
 						parent.sit.setEnabled(true);
 						parent.spectating=true;
-						System.out.println("SHOULD HAVE SIT ENABLED after not being in the list");
+						player.setMessage("SIT OR WAIT TO JOIN");
 					}
 					parent.display(serverPackage);
 				}
@@ -253,23 +252,8 @@ public class SwingGameClient extends JFrame implements ActionListener{
 		player=you;
 	}
 	public void display(ServerPackage serverPackage) {
-//		String message="";
-//		for(Player p: serverPackage.getPlayers()) {
-//			message+=p.getName()+ ": ";
-//			for(Card c: p.getHand()) {
-//				message+= c.toString()+" ";
-//			}
-//			message+=" :"+ p.getBet();
-//			message+="\n Round Start: " + serverPackage.isRoundStarted();
-//			message+="\n Dealer :" + p.isDealer();
-//			message+="\n Turn :" + p.isTheirTurn();
-//			message+="\n Done :" + p.isDoneForTheRound();
-//			message+="\n Points :" + p.getPoints();
-//			message+="\n";
-//			
-//		}
-//		textArea.append(message + '\n');
 		clearEverything();
+		textArea.setText("");
 		int playersIndex=0;
 		if(!spectating) {
 			for(int i=0;i<serverPackage.getPlayers().size();i++) {
@@ -294,6 +278,9 @@ public class SwingGameClient extends JFrame implements ActionListener{
 			if(z.isDealer()) {
 				dealerLabels[i].setVisible(true);
 			}
+			if(z.getName().equals(player.getName())) {
+				textArea.setText(z.getMessage());
+			}
 		}
 		
 		if(!serverPackage.isRoundFinished()) {
@@ -304,13 +291,14 @@ public class SwingGameClient extends JFrame implements ActionListener{
 							if(player.getHand().size()>0) {
 								hit.setEnabled(true);
 								stand.setEnabled(true);
-								textArea.setText("YOUR TURN");
+								textArea.append("\nYOUR TURN");
 							}
 						}else {
 							if(player.getHand().size()==0) {
 								bet.setEnabled(true);
 								hit.setEnabled(false);
-								stand.setEnabled(false);	
+								stand.setEnabled(false);
+								textArea.append("\nTIME TO BET");
 							}else {
 								hit.setEnabled(false);
 								stand.setEnabled(false);
@@ -322,7 +310,7 @@ public class SwingGameClient extends JFrame implements ActionListener{
 								bet.setEnabled(false);
 								hit.setEnabled(true);
 								stand.setEnabled(true);
-								textArea.setText("YOUR TURN");
+								textArea.append("\nYOUR TURN");
 							}
 						}else {
 							hit.setEnabled(false);
@@ -333,16 +321,19 @@ public class SwingGameClient extends JFrame implements ActionListener{
 					for(int i=0;i<buttons.length;i++){
 						buttons[i].setEnabled(false);
 					}
-					textArea.setText("WAITING FOR OTHERS");
+					textArea.append("\nWAITING FOR OTHERS");
 				}
 			}else if(!serverPackage.isRoundStarted() && player.isTheirTurn() && !player.isDealer()){ 
 				bet.setEnabled(true);
+				textArea.append("\nTIME TO BET");
 			}else if(!serverPackage.isRoundStarted() && player.isDealer()) {
 				for(int i=0;i<buttons.length;i++){
 					buttons[i].setEnabled(false);
 				}
+				textArea.append("\nWAITING FOR OTHERS");
 			}else if(!serverPackage.isRoundStarted()&& !player.isActive()) { //adding this to counter issue of player only sitting before the dealer clicks next round
 				sit.setEnabled(true);
+				textArea.append("\nSIT TO PLAY!");
 			}
 		}else {
 			if(player.isDealer()) {
@@ -352,6 +343,8 @@ public class SwingGameClient extends JFrame implements ActionListener{
 			bet.setEnabled(false);
 			hit.setEnabled(false);
 			stand.setEnabled(false);
+			textArea.append("\nROUND OVER!");
+			player.setMessage("");
 		}
 	}
 	public void actionPerformed(ActionEvent e) {

@@ -4,8 +4,7 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Server implements Runnable {
 	private class ClientRunner implements Runnable{
@@ -13,9 +12,11 @@ public class Server implements Runnable {
 		private Server parent=null;
 		private ObjectInputStream inputStream = null;
 		private ObjectOutputStream outputStream = null;
-		public ClientRunner(Socket s, Server parent) {
+		private ReentrantLock theLock;
+		public ClientRunner(Socket s, Server parent, ReentrantLock theLock) {
 			socket=s;
 			this.parent=parent;
+			this.theLock=theLock;
 			try {
 				outputStream = new ObjectOutputStream(socket.getOutputStream());
 				inputStream = new ObjectInputStream(socket.getInputStream());
@@ -29,42 +30,36 @@ public class Server implements Runnable {
 				ClientPackage clientPackage=null;
 				while((clientPackage= (ClientPackage)inputStream.readObject())!=null){ //receive the package of information from the client
 					System.out.println(Thread.currentThread().getName());
-					Player nameMatch=null;
-					boolean newGuy=false;
-					boolean nextRound=false;
-					for(Player p:parent.model.getPlayers()) {
-						if(p.getName().equals(clientPackage.getPlayer().getName())) { //if we have a previous instance of this player 
-							nameMatch=p; //save reference here because they can't be removed from the list while it's being iterated
+					boolean done=false;
+					while(!done) {
+						boolean available=theLock.tryLock();
+						if(available){
+							theLock.lock(); //in case someone sits down in this precise moment and sends a Player to be added to the list
+							try {
+							ServerPackage initialServerPackage=initialProcessing(clientPackage);
+							ServerPackage finishedServerPackage=advanceGame(initialServerPackage);
+							sendPackages(finishedServerPackage);
+							}catch(Exception e) {
+								e.printStackTrace();
+							}finally{
+							theLock.unlock();
+							 System.out.println("UNLOCKED");
+							}
+							theLock.unlock();
+							done=true;
+						}else {
+							try
+								{ 
+								Thread.sleep(1000); 
+						        System.out.println("Sleeping");
+								} 
+							catch(InterruptedException e) 
+								{ 
+						          e.printStackTrace(); 
+						        } 
 						}
 					}
-					
-					if(clientPackage.isSit()) {
-						if(nameMatch!=null) { //if we have a match, make this new Player's name unique, make him not new and then add him
-							clientPackage.getPlayer().uniqueName();
-						}
-						newGuy=true;
-						clientPackage.getPlayer().setNewPlayer(false);
-						clientPackage.getPlayer().setActive(true);
-						parent.model.addPlayer(clientPackage.getPlayer());
-						nameMatch=clientPackage.getPlayer();
-					}else if(clientPackage.isHit()) {
-						parent.model.hit(nameMatch);
-					}else if(clientPackage.isBet()) {
-						nameMatch.setBet(clientPackage.getPlayer().getBet());
-						nameMatch.setPoints(clientPackage.getPlayer().getPoints());
-						model.deal(nameMatch);
-						nameMatch.setDoneForTheRound(false);
-						System.out.println("BET :"+ nameMatch.getBet() + " DONE:" +nameMatch.isDoneForTheRound() + " TURN: "+ nameMatch.isTheirTurn());
-					}else if(clientPackage.isStand()) {
-						nameMatch.setDoneForTheRound(true);
-					}else if(clientPackage.isNextRound()) {
-						nextRound=true;
-					}
-					ServerPackage serverPackage =new ServerPackage(model.getPlayers(),nameMatch);
-					serverPackage.setJustANewGuy(newGuy);
-					serverPackage.setNextRound(nextRound);
-					advanceGame(serverPackage);
-				
+					System.out.println(Thread.currentThread().getName()+" exited");
 				}
 				inputStream.close();
 			}catch(ClassNotFoundException e) {
@@ -73,7 +68,45 @@ public class Server implements Runnable {
 				e.printStackTrace();
 			}
 		}
-		public void advanceGame(ServerPackage serverPackage){ 
+		public ServerPackage initialProcessing(ClientPackage clientPackage) {
+			Player nameMatch=null;
+			boolean newGuy=false;
+			boolean nextRound=false;
+			clientPackage.getPlayer().setMessage("");
+			for(Player p:parent.model.getPlayers()) {
+				if(p.getName().equals(clientPackage.getPlayer().getName())) { //if we have a previous instance of this player 
+					nameMatch=p; //save reference here because they can't be removed from the list while it's being iterated
+				}
+			}
+			
+			if(clientPackage.isSit()) {
+				if(nameMatch!=null) { //if we have a match, make this new Player's name unique by adding the hashcode of his object to the name
+					clientPackage.getPlayer().uniqueName();
+				}
+				newGuy=true;
+				clientPackage.getPlayer().setNewPlayer(false);
+				clientPackage.getPlayer().setActive(true);
+				parent.model.addPlayer(clientPackage.getPlayer());
+				nameMatch=clientPackage.getPlayer();
+			}else if(clientPackage.isHit()) {
+				parent.model.hit(nameMatch);
+			}else if(clientPackage.isBet()) {
+				nameMatch.setBet(clientPackage.getPlayer().getBet());
+				nameMatch.setPoints(clientPackage.getPlayer().getPoints());
+				model.deal(nameMatch);
+				nameMatch.setDoneForTheRound(false);
+				System.out.println("BET :"+ nameMatch.getBet() + " DONE:" +nameMatch.isDoneForTheRound() + " TURN: "+ nameMatch.isTheirTurn());
+			}else if(clientPackage.isStand()) {
+				nameMatch.setDoneForTheRound(true);
+			}else if(clientPackage.isNextRound()) {
+				nextRound=true;
+			}
+			ServerPackage serverPackage =new ServerPackage(model.getPlayers(),nameMatch);
+			serverPackage.setJustANewGuy(newGuy);
+			serverPackage.setNextRound(nextRound);
+			return serverPackage;
+		}
+		public ServerPackage advanceGame(ServerPackage serverPackage){ 
 			System.out.println("package arrived :"+ serverPackage.getPlayer().getName());
 			int active=0;
 			boolean noDealer=true;
@@ -126,13 +159,13 @@ public class Server implements Runnable {
 //				model.firstToHit();
 			}
 			
-			if(!model.isRoundStarted() && active>1) { //we have enough players for a game and the round hasn't started yet, so I start it here 
+			if(!model.isRoundStarted() && active>1) { //a round should start with these conditions, but only if the bets are already in
 				if(betsIn) {
 					newGame=true;
 					model.setRoundStarted(true);
 					model.firstToHit();
 					System.out.println("LOOP FOR ROUND START");	
-				}else {
+				}else { //if the bets are not in, a turn needs to be given to a player in order for the betting to start
 					if(noTurn) {
 						model.firstToHit();
 						System.out.println("LOOP FOR NO TURN");	
@@ -199,7 +232,7 @@ public class Server implements Runnable {
 				}
 			}
 			System.out.println("The Players : "+model.getPlayers().toString());
-			sendPackages(serverPackage);
+			return serverPackage;
 			
 		}
 		
@@ -217,8 +250,10 @@ public class Server implements Runnable {
 	private ServerSocket serverSocket=null;
 	private ArrayList<ClientRunner> clients = new ArrayList<ClientRunner>();
 	private Model model;
+	private ReentrantLock theLock;
 	public Server() {
 		model=new Model();
+		theLock=new ReentrantLock(true);
 		try {
 			serverSocket = new ServerSocket(8765);
 		}catch(IOException e) {
@@ -239,7 +274,7 @@ public class Server implements Runnable {
 			try {
 				clientSocket= serverSocket.accept();
 				System.out.println("clients accepted");
-				ClientRunner client = new ClientRunner(clientSocket,this);
+				ClientRunner client = new ClientRunner(clientSocket,this, theLock);
 				clients.add(client);
 				new Thread(client).start();
 			}catch(IOException e) {

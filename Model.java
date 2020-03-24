@@ -35,6 +35,7 @@ public class Model{
 			p.setBet(0);
 			p.setTheirTurn(false);
 			p.setDoneForTheRound(true);
+			p.setMessage("NEW ROUND");
 			if(p.isDealer()) {
 				p.setDoneForTheRound(false); // the dealer needs to be set to not done for the round, because he can't bet in order to become in turn again 
 				deal(p);
@@ -53,7 +54,6 @@ public class Model{
 		for(Player p: toBeRemoved) {
 			waiting.remove(p);
 		}
-//		giveTurn();
 	}
 	public void hit(Player player) {
 		player.getHand().add(deck.getCards().get(0));
@@ -205,13 +205,13 @@ public class Model{
 						dealer.setPoints(dealer.getPoints()+p.getBet());
 						p.setMessage("YOU LOSE");
 					}
-				}else if(p.getHandValue()>22 && dealer.getHandValue()>22) {
+				}else if(p.getHandValue()>21 && dealer.getHandValue()>21) {
 					p.setPoints(p.getPoints()+p.getBet());
 					p.setMessage("PUSH");
-				}else if(p.getHandValue()>22){
+				}else if(p.getHandValue()>21){
 					dealer.setPoints(dealer.getPoints()+p.getBet());
 					p.setMessage("BUST");
-				}else if(dealer.getHandValue()>22) {
+				}else if(dealer.getHandValue()>21) {
 					p.setPoints(p.getPoints()+p.getBet()*2);
 					dealer.setPoints(dealer.getPoints()-p.getBet());
 					p.setMessage("DEALER BUST");
