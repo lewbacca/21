@@ -20,7 +20,6 @@ public class Server implements Runnable {
 			try {
 				outputStream = new ObjectOutputStream(socket.getOutputStream());
 				inputStream = new ObjectInputStream(socket.getInputStream());
-				System.out.println("server streams started");
 			}catch(IOException e) {
 				e.printStackTrace();
 			}
@@ -43,15 +42,13 @@ public class Server implements Runnable {
 								e.printStackTrace();
 							}finally{
 							theLock.unlock();
-							 System.out.println("UNLOCKED");
 							}
 							theLock.unlock();
 							done=true;
 						}else {
 							try
 								{ 
-								Thread.sleep(1000); 
-						        System.out.println("Sleeping");
+								Thread.sleep(500);
 								} 
 							catch(InterruptedException e) 
 								{ 
@@ -59,7 +56,6 @@ public class Server implements Runnable {
 						        } 
 						}
 					}
-					System.out.println(Thread.currentThread().getName()+" exited");
 				}
 				inputStream.close();
 			}catch(ClassNotFoundException e) {
@@ -78,7 +74,6 @@ public class Server implements Runnable {
 					nameMatch=p; //save reference here because they can't be removed from the list while it's being iterated
 				}
 			}
-			
 			if(clientPackage.isSit()) {
 				if(nameMatch!=null) { //if we have a match, make this new Player's name unique by adding the hashcode of his object to the name
 					clientPackage.getPlayer().uniqueName();
@@ -93,11 +88,12 @@ public class Server implements Runnable {
 			}else if(clientPackage.isBet()) {
 				nameMatch.setBet(clientPackage.getPlayer().getBet());
 				nameMatch.setPoints(clientPackage.getPlayer().getPoints());
+				nameMatch.setMessage("HIT OR STAND?");
 				model.deal(nameMatch);
 				nameMatch.setDoneForTheRound(false);
-				System.out.println("BET :"+ nameMatch.getBet() + " DONE:" +nameMatch.isDoneForTheRound() + " TURN: "+ nameMatch.isTheirTurn());
 			}else if(clientPackage.isStand()) {
 				nameMatch.setDoneForTheRound(true);
+				nameMatch.setMessage("STANDING.");
 			}else if(clientPackage.isNextRound()) {
 				nextRound=true;
 			}
@@ -106,19 +102,23 @@ public class Server implements Runnable {
 			serverPackage.setNextRound(nextRound);
 			return serverPackage;
 		}
+		/**
+		 * measures certain attributes of the model and advances the state of the game 
+		 * @param serverPackage - the package coming from initial processing and is used to update the state of the model
+		 * @return - the package, which reflects the current state of the game 
+		 */
 		public ServerPackage advanceGame(ServerPackage serverPackage){ 
-			System.out.println("package arrived :"+ serverPackage.getPlayer().getName());
 			int active=0;
 			boolean noDealer=true;
 			boolean newGame=false;
 			boolean betsIn=true;
 			boolean waitingForBet=false;
 			boolean noTurn=true;
-			int done = 0;
+			int done=0;
 			ArrayList<Player> blackJacks=new ArrayList<Player>();
 			for(Player p:model.getPlayers()) {
 				if(p.isActive()) {
-					active++;
+					active++; //
 				}
 				if(p.isDoneForTheRound()) {
 					done++;
@@ -133,105 +133,79 @@ public class Server implements Runnable {
 				}
 				if(p.isTheirTurn() && p.getBet()==0 ) {
 					waitingForBet=true;
-				}
-				
+				}	
 			}
-			if(active>1 && noDealer) {
-				model.assignDealer();
-				for(Player p: model.getPlayers()) {
-					if(p.isDealer() && p.getHand().size()==0) {
-						model.deal(p);
-						p.setDoneForTheRound(false);
-						done--;
-					}
-				}
+			if(active>1 && noDealer) { //the conditions are right to start a round, a dealer must first be assigned
+				Player dealer=model.assignDealer(); 
+				model.deal(dealer); 
+				dealer.setDoneForTheRound(false); 
+				done--; 
 				model.giveTurn();
-				System.out.println("LOOP FOR DEALER");	
 			}
-			
-			if(serverPackage.isNextRound()) {
+			if(serverPackage.isNextRound()) { //the dealer has clicked the "Next Round" button
 				model.clearTable();
 				newGame=true;
 				betsIn=false;
-				if(model.getPlayers().size()>1) {
-					model.firstToHit();
-				}
-//				model.firstToHit();
+				noTurn=true;
 			}
-			
 			if(!model.isRoundStarted() && active>1) { //a round should start with these conditions, but only if the bets are already in
 				if(betsIn) {
 					newGame=true;
 					model.setRoundStarted(true);
 					model.firstToHit();
 					System.out.println("LOOP FOR ROUND START");	
-				}else { //if the bets are not in, a turn needs to be given to a player in order for the betting to start
-					if(noTurn) {
+				}else if(noTurn){ //if the bets are not in, a turn needs to be given to a player in order for the betting to start
 						model.firstToHit();
 						System.out.println("LOOP FOR NO TURN");	
-					}
 				}
 			}
-			
-
-				
-			if (done==0 && model.isRoundStarted() && betsIn){
+			if(done==0 && model.isRoundStarted() && betsIn){ //means the round has just started 
 				for(Player p: model.getPlayers()){	
-					if(p.getHand().size()==2 && p.getHandValue()==21){
+					if(p.getHand().size()==2 && p.getHandValue()==21){ //player has a "natural vingt-un"
 						blackJacks.add(p);
-						System.out.println("BLACKJACK");
 					}
 				}
 				if(blackJacks.size()>0) {
 						for(Player b: blackJacks) {
 							int pointsToBeAdded = 0;
 							for(Player p: model.getPlayers()){
-								if(!blackJacks.contains(p)){
+								if(!blackJacks.contains(p)){ //blackjack players do not pay each other
 									if(!p.isDealer()) {
-										pointsToBeAdded+=p.getBet()*2;
+										pointsToBeAdded+=p.getBet()*2; //a natural vingt-un earns gets the winner/winners twice what each loser bet
 										p.setPoints(p.getPoints()-p.getBet());
 									}else {
-										pointsToBeAdded+=b.getBet()*2;
-										p.setPoints(p.getPoints()-b.getBet()*2);
+										pointsToBeAdded+=b.getBet()*2; //the dealer pays what the winner bet
+										p.setPoints(p.getPoints()-b.getBet()*2); 
 									}
 								}
+							p.setMessage("TWENTY ONE!");	
 							}
-							b.setPoints(b.getPoints()+pointsToBeAdded+b.getBet());
+							b.setPoints(b.getPoints()+pointsToBeAdded+b.getBet()); //add the sum of the winnings to each of the winners
 						}
 						for(Player p: model.getPlayers()) { //remove the previous dealer
 							p.setDealer(false);
 						}
-//						model.checkLosers();
-						blackJacks.get(0).setDealer(true);
+						blackJacks.get(0).setDealer(true); //the winner with positional advantage becomes the new dealer
 						blackJacks.get(0).setTheirTurn(false);
 						model.setRoundStarted(false);
+						model.setTableCleared(false);
 						serverPackage.setRoundFinished(true);
 						newGame=true;
-//						model.clearTable();
 				}
-				blackJacks.clear();
-				System.out.println("LOOP FOR BLACKJACKS");
-				 
 			}
-			if(done==model.getPlayers().size() && betsIn) {
-				System.out.println("went in to last");
+			if(done==model.getPlayers().size() && betsIn) { //means everyone is standing or bust 
 				model.setRoundStarted(false);
 				model.roundEnd();
-//				model.clearTable();
 				newGame=true;
 				serverPackage.setRoundFinished(true);
 				System.out.println("LOOP FOR END OF THE ROUND");	
 			}
-			System.out.println("The round is started :" +model.isRoundStarted());
-			System.out.println("This is a new game :" +newGame);
 			serverPackage.setRoundStarted(model.isRoundStarted());
 			if(!newGame && !serverPackage.isJustANewGuy()) {
 				if(!waitingForBet) {
 				model.giveTurn();
-				System.out.println("IF FOR GIVING TURN");
 				}
 			}
-			System.out.println("The Players : "+model.getPlayers().toString());
 			return serverPackage;
 			
 		}
@@ -264,7 +238,6 @@ public class Server implements Runnable {
 		for(ClientRunner c: clients) {
 			if(c!=null) {
 				c.sendPackage(serverPackage);
-				System.out.println("package sent :"+ serverPackage.getPlayer().getName());
 			}
 		}
 	}
@@ -273,7 +246,6 @@ public class Server implements Runnable {
 			Socket clientSocket=null;
 			try {
 				clientSocket= serverSocket.accept();
-				System.out.println("clients accepted");
 				ClientRunner client = new ClientRunner(clientSocket,this, theLock);
 				clients.add(client);
 				new Thread(client).start();

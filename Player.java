@@ -27,11 +27,9 @@ public class Player implements Serializable{
 		return doneForTheRound;
 	}
 
-
 	public void setDoneForTheRound(boolean doneForTheRound) {
 		this.doneForTheRound = doneForTheRound;
 	}
-
 
 	public int getPoints() {
 		return points;
@@ -46,18 +44,21 @@ public class Player implements Serializable{
 	}
 
 	public int getHandValue() {
-		calculateHand();
+		calculateHand(); //assures we get the right value for the hand
 		return handValue;
 	}
 
 	public String getName() {
 		return name;
 	}
+	/**
+	 * calculates the value of the hand according to the games rules
+	 */
 	public void calculateHand() {
-		int certainSum=0;
+		int certainSum=0; 
 		int aceAmount=0;
 		
-		for(Card c: hand) {
+		for(Card c: hand) { //to get the value not counting the aces
 			if(!c.getName().equals("Ace")){
 				certainSum+=c.getValue();
 			}else {
@@ -66,19 +67,20 @@ public class Player implements Serializable{
 		}
 		int aces=aceAmount;
 		for(int i=0;i<aceAmount;i++) {
-			if(certainSum<11 && aces==1) {
+			if(certainSum<11 && aces==1) { //if its the last ace and won't take us over 21, add 11
 				certainSum+=11;
 			}else {
 				if(aces==0) {
-					break;
+					break; //end if were out of aces
 				}
 				aces--;
-				certainSum++;
+				certainSum++; //add 1, otherwise
 			}
 		}
 		handValue=certainSum;
 		if(handValue>21){
-			doneForTheRound=true;
+			doneForTheRound=true; //makes it impossible to hit after you've bust, but it doesn't reveal your cards to others
+			message="BUST."; //set a message to be displayed in the client
 		}
 	}
 
@@ -106,9 +108,12 @@ public class Player implements Serializable{
 	public void setNewPlayer(boolean newPlayer) {
 		this.newPlayer = newPlayer;
 	}	
+	/**
+	 * makes the player's name unique, used when there is a duplicate
+	 */
 	public void uniqueName() {
 		name+=this.hashCode();
-		message+="The name you picked was not availabe. You are: "+ name;
+		message+="YOU ARE: "+ name;
 	}
 
 	public boolean isTheirTurn() {
