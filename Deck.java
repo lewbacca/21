@@ -1,9 +1,12 @@
 import java.util.ArrayList;
 import java.util.Random;
-
+/**
+ * Objects of this class are used to generate and access a shuffled array list of 52 cards.
+ * @author 2072353l, Lyubomir Lazarov
+ *
+ */
 public class Deck {
 	private ArrayList<Card> cards = new ArrayList<Card>();
-	
 	public Deck() {
 		String[] suits = new String[4];
 		suits[0]="Hearts";
@@ -32,10 +35,10 @@ public class Deck {
 	public void shuffle() {
 		Random rand= new Random();
 		for(int i=0;i<cards.size();i++) {
-		int randomNumber=rand.nextInt(cards.size());
-		Card temp=cards.get(randomNumber);
-		cards.set(randomNumber, cards.get(i));
-		cards.set(i, temp);
+			int randomNumber=rand.nextInt(cards.size());
+			Card temp=cards.get(randomNumber);
+			cards.set(randomNumber, cards.get(i));
+			cards.set(i, temp);
 		}
 	}
 }

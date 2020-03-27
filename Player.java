@@ -1,6 +1,10 @@
 import java.io.Serializable;
 import java.util.ArrayList;
-
+/**
+ * Objects of this class are used to represent players in the game.
+ * @author - 2072353l, Lyubomir Lazarov
+ *
+ */
 public class Player implements Serializable{
 	private ArrayList<Card> hand = new ArrayList<Card>();
 	private int handValue;

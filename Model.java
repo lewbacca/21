@@ -1,15 +1,18 @@
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.Random;
-
+/**
+ * This is the model part of the MVC architecture.
+ * @author 2072353l, Lyubomir Lazarov
+ *
+ */
 public class Model{
 	private ArrayList<Player> players= new ArrayList<Player>();
 	private Deck deck;
 	private boolean roundStarted;
 	private ArrayList<Player> waiting= new ArrayList<Player>();
 	private boolean tableCleared;
-	public Model(){
+	public Model(){ //constructor
 		deck=new Deck();
 		roundStarted=false;
 		tableCleared=true;
@@ -19,6 +22,7 @@ public class Model{
 	 * @param player - client's player object that just came in to the server
 	 */
 	public void addPlayer(Player player) {
+		
 		if(tableCleared && !roundStarted) { //if a round has just ended and we are in the betting stage of the new one
 			players.add(player);
 		}else {
@@ -197,6 +201,9 @@ public class Model{
 			}
 		}
 	}
+	/**
+	 * gives the turn to the first player after the dealer or first in the list, used when giveTurn() can't be 
+	 */
 	public void firstToHit() {
 		int dealersIndex=0;
 		for(int i=0;i<players.size();i++) {
@@ -231,27 +238,27 @@ public class Model{
 						p.setPoints(p.getPoints()+p.getBet()*2);
 						dealer.setPoints(dealer.getPoints()-p.getBet());
 						p.setMessage("YOU WIN.");
-					}else if(p.getHandValue()==dealer.getHandValue()) {
+					}else if(p.getHandValue()==dealer.getHandValue()) { //this is a push
 						p.setPoints(p.getPoints()+p.getBet());
 						p.setMessage("PUSH.");
-					}else {
+					}else { //the dealer has the better hand
 						dealer.setPoints(dealer.getPoints()+p.getBet());
 						p.setMessage("YOU LOSE.");
 					}
-				}else if(p.getHandValue()>21 && dealer.getHandValue()>21) {
+				}else if(p.getHandValue()>21 && dealer.getHandValue()>21) { //both the dealer and player are bust
 					p.setPoints(p.getPoints()+p.getBet());
 					p.setMessage("PUSH.");
-				}else if(p.getHandValue()>21){
+				}else if(p.getHandValue()>21){ //the player is bust
 					dealer.setPoints(dealer.getPoints()+p.getBet());
 					p.setMessage("BUST.");
-				}else if(dealer.getHandValue()>21) {
+				}else if(dealer.getHandValue()>21) { //the dealer is bust
 					p.setPoints(p.getPoints()+p.getBet()*2);
 					dealer.setPoints(dealer.getPoints()-p.getBet());
 					p.setMessage("DEALER BUST.");
 				}
 			}
 		}
-		tableCleared=false;
+		tableCleared=false; //the table needs cleared, because the round is finished
 	}
 	public ArrayList<Player> getWaiting() {
 		return waiting;
@@ -259,4 +266,8 @@ public class Model{
 	public void setTableCleared(boolean tableCleared) {
 		this.tableCleared=tableCleared;
 	}
+	public boolean isTableCleared() {
+		return tableCleared;
+	}
+	
 }

@@ -1,7 +1,12 @@
 import java.io.Serializable;
-
+/**
+ * Objects of this class are passed from the client to the server.
+ * They hold information about what the client chose and which client it is.
+ *  @author 2072353l, Lyubomir Lazarov
+ *
+ */
 public class ClientPackage implements Serializable {
-	private final Player player;
+	private final Player player; 
 	private boolean sit;
 	private boolean hit;
 	private boolean stand;
@@ -13,6 +18,7 @@ public class ClientPackage implements Serializable {
 		hit=false;
 		stand=false;
 		bet=false;
+		nextRound=false;
 	}
 	public Player getPlayer() {
 		return player;
@@ -47,6 +53,4 @@ public class ClientPackage implements Serializable {
 	public void setNextRound(boolean nextRound) {
 		this.nextRound = nextRound;
 	}
-	
-	
 }

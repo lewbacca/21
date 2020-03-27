@@ -1,6 +1,13 @@
 import java.io.Serializable;
 import java.util.ArrayList;
-
+/**
+ * Objects of this class are passed from the server to the clients.
+ * They hold and array list of the active players and a player object, 
+ * who sent a client package to get this corresponding server package.
+ * They also hold multiple booleans to identify the current state of the game, important for the view of the client.
+ *  @author 2072353l, Lyubomir Lazarov
+ *
+ */
 public class ServerPackage implements Serializable{
 	private final ArrayList<Player> players;
 	private final Player you;
@@ -13,6 +20,7 @@ public class ServerPackage implements Serializable{
 		this.you=you;
 		roundStarted=false;
 		nextRound=false;
+		justANewGuy=false;
 		roundFinished=false;
 	}
 	public ArrayList<Player> getPlayers() {
